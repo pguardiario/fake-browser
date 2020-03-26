@@ -5,7 +5,7 @@ class FakeBrowser{
   constructor(ua = chrome, options = {}){
     this.baseHeaders = {
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-      "Accept-Encoding": "gzip, deflate, br",
+      // "Accept-Encoding": "gzip, deflate, br", // todo: handle gzip
       "Accept-Language": "en-US;q=0.9,en;q=0.8",
       "Sec-Fetch-Dest": "document",
       "Sec-Fetch-Mode": "navigate",
