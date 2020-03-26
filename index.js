@@ -50,7 +50,6 @@ class FakeBrowser{
         req.write(options.body)
       }
       req.on('end', () => {
-        console.log(`\n${data}`);
         client.close();
         resolve({headers: responseHeaders, data})
       });
