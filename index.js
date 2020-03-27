@@ -1,11 +1,12 @@
 const http2 = require('http2');
-const fs = require('fs');
+const zlib = require('zlib');
+const { PassThrough } = require('stream')
 
 class FakeBrowser{
   constructor(ua = chrome, options = {}){
     this.baseHeaders = {
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-      // "Accept-Encoding": "gzip, deflate, br", // todo: handle gzip
+      "Accept-Encoding": "gzip", // todo: handle gzip
       "Accept-Language": "en-US;q=0.9,en;q=0.8",
       "Sec-Fetch-Dest": "document",
       "Sec-Fetch-Mode": "navigate",
@@ -39,20 +40,34 @@ class FakeBrowser{
 
       let responseHeaders = {}
 
+      let stream
+
       req.on('response', (headers, flags) => {
         responseHeaders = {...headers}
-      });
+        if(responseHeaders["content-encoding"] === 'gzip'){
+          stream = new PassThrough()
+          req.pipe(zlib.createGunzip()).pipe(stream)
+        } else {
+          // debugger
+        }
 
-      req.setEncoding('utf8');
+        (stream || req).on('data', (chunk) => {
+          data += chunk
+        });
+
+        (stream || req).on('end', () => {
+          client.close();
+          resolve({headers: responseHeaders, data})
+        })
+
+      })
+
+      // req.setEncoding('utf8');
       let data = '';
-      req.on('data', (chunk) => { data += chunk; });
+
       if(options.method === 'POST'){
         req.write(options.body)
       }
-      req.on('end', () => {
-        client.close();
-        resolve({headers: responseHeaders, data})
-      });
       req.end();
 
     })
@@ -80,7 +95,7 @@ module.exports = new FakeBrowser('chrome', {})
 
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
-//   // let response = await f.get('https://httpbin.org/headers')
-//   let {headers, data} = await f.post('https://httpbin.org/post', JSON.stringify({"foo": "bar"}), {json: true})
+//   let response = await f.get('https://www.amazon.com/')
+//   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
 //   debugger
 // })()
