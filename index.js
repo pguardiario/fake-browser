@@ -6,7 +6,7 @@ class FakeBrowser{
   constructor(ua = chrome, options = {}){
     this.baseHeaders = {
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-      "Accept-Encoding": "gzip", // todo: handle gzip
+      "Accept-Encoding": "gzip, deflate, br",
       "Accept-Language": "en-US;q=0.9,en;q=0.8",
       "Sec-Fetch-Dest": "document",
       "Sec-Fetch-Mode": "navigate",
@@ -38,36 +38,43 @@ class FakeBrowser{
 
       const req = client.request( args )
 
-      let responseHeaders = {}
-
-      let stream
-
       req.on('response', (headers, flags) => {
-        responseHeaders = {...headers}
-        if(responseHeaders["content-encoding"] === 'gzip'){
-          stream = new PassThrough()
-          req.pipe(zlib.createGunzip()).pipe(stream)
-        } else {
-          // debugger
+
+        let stream = new PassThrough()
+
+        switch(headers["content-encoding"]){
+          case 'gzip':
+            req.pipe(zlib.createGunzip()).pipe(stream)
+            break
+          case 'deflate':
+            req.pipe(zlib.Inflate()).pipe(stream)
+            break
+          case 'br':
+            req.pipe(zlib.BrotliDecompress()).pipe(stream)
+            break
+          default:
+            req.pipe(stream)
+            break
         }
 
-        (stream || req).on('data', (chunk) => {
-          data += chunk
-        });
+        // req.setEncoding('utf8');
+        let data = '';
 
-        (stream || req).on('end', () => {
+        stream.on('data', (chunk) => {
+          data += chunk
+        })
+
+        stream.on('end', () => {
           client.close();
-          resolve({headers: responseHeaders, data})
+          resolve({headers, data})
         })
 
       })
 
-      // req.setEncoding('utf8');
-      let data = '';
-
       if(options.method === 'POST'){
         req.write(options.body)
       }
+
       req.end();
 
     })
@@ -95,7 +102,8 @@ module.exports = new FakeBrowser('chrome', {})
 
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
-//   let response = await f.get('https://www.amazon.com/')
+//   // let response = await f.get('https://www.amazon.com/')
+//   let response = await f.get('https://www.google.com/')
 //   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
 //   debugger
 // })()
