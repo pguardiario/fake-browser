@@ -1,5 +1,6 @@
-const http2 = require('http2');
-const zlib = require('zlib');
+const http2 = require('http2')
+const http = require('http')
+const zlib = require('zlib')
 const { PassThrough } = require('stream')
 
 class FakeBrowser{
@@ -17,9 +18,45 @@ class FakeBrowser{
     }
   }
 
-  async request(options){
+  async httpRequest(options){
+    const url = new URL(options.url)
     return await new Promise((resolve, reject) => {
-      const url = new URL(options.url)
+
+    const o = {
+      hostname: url.hostname,
+      port: url.port || 80,
+      path: url.pathname + url.search,
+      method: options.method,
+      headers: {...this.baseHeaders, ...(options.headers || {})}
+    };
+
+    const req = http.request(o, (res) => {
+      let data = ''
+      res.on('data', (chunk) => {
+        data += chunk
+      });
+
+      res.on('end', () => {
+        resolve({headers:res.headers, data})
+      });
+    });
+
+    req.on('error', (e) => {
+      console.error(`problem with request: ${e.message}`);
+    });
+
+    // Write data to request body
+    // req.write(postData);
+    req.end();
+
+    })
+
+  }
+
+  async request(options){
+    const url = new URL(options.url)
+    if(url.protocol === 'http:') return await this.httpRequest(options)
+    return await new Promise((resolve, reject) => {
       const client = http2.connect(url.protocol + '//' + url.host, {
         // ca: fs.readFileSync('localhost-cert.pem')
       })
@@ -58,15 +95,15 @@ class FakeBrowser{
         }
 
         // req.setEncoding('utf8');
-        let data = '';
+        let buffers = []
 
         stream.on('data', (chunk) => {
-          data += chunk
+          buffers.push(chunk)
         })
 
         stream.on('end', () => {
-          client.close();
-          resolve({headers, data})
+          client.close()
+          resolve({headers, data: Buffer.concat(buffers)})
         })
 
       })
@@ -102,8 +139,9 @@ module.exports = new FakeBrowser('chrome', {})
 
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
-//   // let response = await f.get('https://www.amazon.com/')
-//   let response = await f.get('https://www.themoviedb.org/search?query=Westworld&language=en-US')
+//   // let response = await f.get('http://httpbin.org/')
+//   let response = await f.get('https://image.tmdb.org/t/p/w300_and_h450_bestv2/y55oBgf6bVMI7sFNXwJDrSIxPQt.jpg')
+//   require('fs').writeFileSync('x.jpg', response.data)
 //   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
 //   debugger
 // })()
