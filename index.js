@@ -56,7 +56,7 @@ class FakeBrowser{
   async request(options){
     const url = new URL(options.url)
     if(url.protocol === 'http:') return await this.httpRequest(options)
-    return await new Promise((resolve, reject) => {
+    let response = await new Promise((resolve, reject) => {
       const client = http2.connect(url.protocol + '//' + url.host, {
         // ca: fs.readFileSync('localhost-cert.pem')
       })
@@ -115,6 +115,12 @@ class FakeBrowser{
       req.end();
 
     })
+    if(response.headers[':status'] === 301){
+      let location = new URL(response.headers['location'], options.url).href
+      let newArgs = {...options, url: location}
+      return await this.request(newArgs)
+    }
+    return response
   }
 
   async get(url, options = {}){
@@ -137,11 +143,12 @@ class FakeBrowser{
 
 module.exports = new FakeBrowser('chrome', {})
 
-// ; (async() => {
-//   let f = new FakeBrowser('chrome', {})
-//   // let response = await f.get('http://httpbin.org/')
-//   let response = await f.get('https://image.tmdb.org/t/p/w300_and_h450_bestv2/y55oBgf6bVMI7sFNXwJDrSIxPQt.jpg')
-//   require('fs').writeFileSync('x.jpg', response.data)
-//   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
-//   debugger
-// })()
+; (async() => {
+  let f = new FakeBrowser('chrome', {})
+  // let response = await f.get('http://httpbin.org/')
+  let response = await f.get("https://www.themoviedb.org/tv/60694?language=en-US")
+  // let response = await f.get("https://www.themoviedb.org/tv/60694-last-week-tonight-with-john-oliver?language=en-US")
+  // require('fs').writeFileSync('x.jpg', response.data)
+  // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
+  debugger
+})()
