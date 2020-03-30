@@ -27,7 +27,7 @@ class FakeBrowser{
       client.on('error', (err) => reject(err));
 
       const args = {
-        ':path': url.pathname,
+        ':path': url.pathname + url.search,
         ':method': options.method,
         ...this.baseHeaders
       }
@@ -103,7 +103,7 @@ module.exports = new FakeBrowser('chrome', {})
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
 //   // let response = await f.get('https://www.amazon.com/')
-//   let response = await f.get('https://www.google.com/')
+//   let response = await f.get('https://www.themoviedb.org/search?query=Westworld&language=en-US')
 //   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
 //   debugger
 // })()
