@@ -1,4 +1,5 @@
 const http2 = require('http2')
+const https = require('https')
 const http = require('http')
 const zlib = require('zlib')
 const { PassThrough } = require('stream')
@@ -24,13 +25,13 @@ class FakeBrowser{
 
     const o = {
       hostname: url.hostname,
-      port: url.port || 80,
+      port: url.port || (options.https ? 443 : 80),
       path: url.pathname + url.search,
       method: options.method,
       headers: {...this.baseHeaders, ...(options.headers || {})}
     };
 
-    const req = http.request(o, (res) => {
+    const req = (options.https ? https : http).request(o, (res) => {
       let data = ''
       res.on('data', (chunk) => {
         data += chunk
@@ -55,7 +56,7 @@ class FakeBrowser{
 
   async request(options){
     const url = new URL(options.url)
-    if(url.protocol === 'http:') return await this.httpRequest(options)
+    if(url.protocol === 'http:' || options.http || options.https) return await this.httpRequest(options)
     let response = await new Promise((resolve, reject) => {
       const client = http2.connect(url.protocol + '//' + url.host, {
         // ca: fs.readFileSync('localhost-cert.pem')
@@ -111,9 +112,12 @@ class FakeBrowser{
       if(options.method === 'POST'){
         req.write(options.body)
       }
+      req.on('error', (err) => reject(err));
 
       req.end();
 
+    }).catch(e => {
+      debugger
     })
     if(response.headers[':status'] === 301){
       let location = new URL(response.headers['location'], options.url).href
@@ -146,7 +150,7 @@ module.exports = new FakeBrowser('chrome', {})
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
 //   // let response = await f.get('http://httpbin.org/')
-//   let response = await f.get("https://www.themoviedb.org/tv/60694?language=en-US")
+//   let response = await f.get("https://www.physioboard.org.nz/search-register", {https: true})
 //   // let response = await f.get("https://www.themoviedb.org/tv/60694-last-week-tonight-with-john-oliver?language=en-US")
 //   // require('fs').writeFileSync('x.jpg', response.data)
 //   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
