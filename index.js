@@ -67,7 +67,9 @@ class FakeBrowser{
       const args = {
         ':path': url.pathname + url.search,
         ':method': options.method,
-        ...this.baseHeaders
+        ...this.baseHeaders,
+        'cookie': options.cookies || []
+
       }
 
       if(options.method === 'POST'){
@@ -149,10 +151,11 @@ module.exports = new FakeBrowser('chrome', {})
 
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
-//   // let response = await f.get('http://httpbin.org/')
-//   let response = await f.get("https://www.physioboard.org.nz/search-register", {https: true})
+//   let response = await f.get('https://www.amazon.com/Jutland-Unfinished-Personal-History-Controversy-ebook/dp/B01LXCAJJ1/ref=pd_sim_351_1/133-9215984-5997746?_encoding=UTF8&pd_rd_i=B01LXCAJJ1&pd_rd_r=a1cf8e48-c656-4a27-b38c-aa1f94a606dd&pd_rd_w=hiqGi&pd_rd_wg=JqyeP&pf_rd_p=9fec2710-b93d-4b3e-b3ca-e55dc1c5909a&pf_rd_r=ERR411HN72ZVPAD1G1YR&psc=1&refRID=ERR411HN72ZVPAD1G1YR')
+//   console.log('' + response.data)
+//   // let response = await f.get("https://www.physioboard.org.nz/search-register", {https: true})
 //   // let response = await f.get("https://www.themoviedb.org/tv/60694-last-week-tonight-with-john-oliver?language=en-US")
 //   // require('fs').writeFileSync('x.jpg', response.data)
 //   // let {headers, data} = await f.post('https://www.amazon.com/', JSON.stringify({"foo": "bar"}), {json: true})
-//   debugger
+//   // debugger
 // })()
