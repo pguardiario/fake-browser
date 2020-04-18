@@ -17,6 +17,29 @@ class FakeBrowser{
       "Upgrade-Insecure-Requests": "1",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
     }
+    this._supported = {}
+  }
+
+  // keep track of http2 supported hosts
+  async supported(host) {
+    let supported = this._supported[host]
+    if(supported !== undefined) return supported
+    supported = await this.http2Support( host )
+    // console.log(`support for ${host}: ${!!supported}`)
+    this._supported[host] = supported
+    return supported
+  }
+
+  async http2Support( host ) {
+    return await new Promise((resolve, reject) => {
+      const client = http2.connect(host)
+      client.on('error', (err) => {
+        resolve(false)
+      })
+      client.on('remoteSettings', (settings) => {
+        resolve(settings)
+      })
+    })
   }
 
   async httpRequest(options){
@@ -29,7 +52,7 @@ class FakeBrowser{
       path: url.pathname + url.search,
       method: options.method,
       headers: {...this.baseHeaders, ...(options.headers || {})}
-    };
+    }
 
     const req = (options.https ? https : http).request(o, (res) => {
       let data = ''
@@ -51,18 +74,20 @@ class FakeBrowser{
     req.end();
 
     })
-
   }
 
   async request(options){
     const url = new URL(options.url)
     if(url.protocol === 'http:' || options.http || options.https) return await this.httpRequest(options)
+    if(!(await this.supported(url.protocol + '//' + url.host))) return await this.httpRequest(options)
     let response = await new Promise((resolve, reject) => {
       const client = http2.connect(url.protocol + '//' + url.host, {
         // ca: fs.readFileSync('localhost-cert.pem')
       })
 
-      client.on('error', (err) => reject(err));
+      client.on('error', (err) => {
+        reject(err)
+      });
 
       const args = {
         ':path': url.pathname + url.search,
@@ -114,7 +139,9 @@ class FakeBrowser{
       if(options.method === 'POST'){
         req.write(options.body)
       }
-      req.on('error', (err) => reject(err));
+      req.on('error', (err) => {
+        reject(err)
+      });
 
       req.end();
 
@@ -151,6 +178,7 @@ module.exports = new FakeBrowser('chrome', {})
 
 // ; (async() => {
 //   let f = new FakeBrowser('chrome', {})
+//   // let response = await f.get("https://www.physioboard.org.nz/search-register")
 //   let response = await f.get('https://www.amazon.com/Jutland-Unfinished-Personal-History-Controversy-ebook/dp/B01LXCAJJ1/ref=pd_sim_351_1/133-9215984-5997746?_encoding=UTF8&pd_rd_i=B01LXCAJJ1&pd_rd_r=a1cf8e48-c656-4a27-b38c-aa1f94a606dd&pd_rd_w=hiqGi&pd_rd_wg=JqyeP&pf_rd_p=9fec2710-b93d-4b3e-b3ca-e55dc1c5909a&pf_rd_r=ERR411HN72ZVPAD1G1YR&psc=1&refRID=ERR411HN72ZVPAD1G1YR')
 //   console.log('' + response.data)
 //   // let response = await f.get("https://www.physioboard.org.nz/search-register", {https: true})
